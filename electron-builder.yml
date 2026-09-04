@@ -1,0 +1,34 @@
+appId: com.pdfformdesigner.app
+productName: PDF Form Designer
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!scripts/*'
+  - '!java-filler/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+mac:
+  category: public.app-category.productivity
+  identity: null
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: dir
+      arch:
+        - arm64
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSDocumentsFolderUsageDescription: PDF Form Designer needs access to open and save PDFs.
+    - NSDownloadsFolderUsageDescription: PDF Form Designer needs access to open and save PDFs.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}-${arch}.${ext}
+npmRebuild: false
