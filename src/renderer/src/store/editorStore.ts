@@ -40,6 +40,7 @@ type EditorState = {
   copySelected: () => void
   pasteClipboard: () => string
   duplicateSelected: () => string
+  nudgeSelected: (dx: number, dy: number) => void
 }
 
 const MIN_ZOOM = 0.5
@@ -224,5 +225,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return ''
     }
     return get().cloneField(selectedId, 1)
+  },
+
+  nudgeSelected: (dx, dy) => {
+    const { doc, selectedId } = get()
+    if (doc.kind !== 'open' || !selectedId || (dx === 0 && dy === 0)) {
+      return
+    }
+    const field = doc.fields.find((item) => item.id === selectedId)
+    if (!field) {
+      return
+    }
+    const x = Math.max(0, field.x + dx)
+    const y = Math.max(0, field.y + dy)
+    if (x === field.x && y === field.y) {
+      return
+    }
+    get().updateField(selectedId, { x, y })
   }
 }))

@@ -78,7 +78,7 @@ export default function FieldInspector(): React.JSX.Element {
           Delete field
         </button>
       </div>
-      <p className="muted">⌘C copy · ⌘V paste · ⌥-drag to clone</p>
+      <p className="muted">⌘C copy · ⌘V paste · ⌥-drag to clone · arrows nudge (⇧ for 10pt)</p>
     </section>
   )
 }

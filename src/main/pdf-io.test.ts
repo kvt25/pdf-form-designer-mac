@@ -1,10 +1,11 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { EncryptedPDFError, PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import assert from 'node:assert/strict'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import type { FormField } from '../shared/types'
+import { isEncryptedPdfError } from './pdf-load'
 import { readTextFields } from './pdf-reader'
 import { applyTextFields } from './pdf-writer'
 
@@ -49,4 +50,19 @@ test('applyTextFields writes named AcroForm text fields that readTextFields roun
 
   const dir = await mkdtemp(join(tmpdir(), 'pdf-form-'))
   await writeFile(join(dir, 'form.pdf'), written)
+})
+
+test('readTextFields can ignore encryption on an unencrypted PDF', async () => {
+  const source = await samplePdf()
+  const written = await applyTextFields(source, [field({ name: 'customerName' })])
+  const fields = await readTextFields(written, { ignoreEncryption: true })
+  assert.deepEqual(
+    fields.map((item) => item.name),
+    ['customerName']
+  )
+})
+
+test('isEncryptedPdfError recognizes pdf-lib encrypted load errors', () => {
+  assert.equal(isEncryptedPdfError(new EncryptedPDFError()), true)
+  assert.equal(isEncryptedPdfError(new Error('unrelated')), false)
 })

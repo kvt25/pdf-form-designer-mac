@@ -19,6 +19,7 @@ export default function App(): React.JSX.Element {
   const copySelected = useEditorStore((state) => state.copySelected)
   const pasteClipboard = useEditorStore((state) => state.pasteClipboard)
   const duplicateSelected = useEditorStore((state) => state.duplicateSelected)
+  const nudgeSelected = useEditorStore((state) => state.nudgeSelected)
 
   useEffect(() => {
     const dirty = doc.kind === 'open' && doc.dirty
@@ -63,6 +64,9 @@ export default function App(): React.JSX.Element {
       if ((event.key === 'Backspace' || event.key === 'Delete') && selectedId) {
         event.preventDefault()
         removeSelected()
+        return
+      }
+      if (nudgeFromArrowKey(event, selectedId, nudgeSelected)) {
         return
       }
       const shortcut = event.metaKey || event.ctrlKey
@@ -116,7 +120,7 @@ export default function App(): React.JSX.Element {
       document.removeEventListener('copy', onCopy)
       document.removeEventListener('paste', onPaste)
     }
-  }, [copySelected, pasteClipboard, removeSelected, selectField, selectedId])
+  }, [copySelected, nudgeSelected, pasteClipboard, removeSelected, selectField, selectedId])
 
   return (
     <div className="app">
@@ -138,4 +142,34 @@ function isTextEditingTarget(target: EventTarget | null): boolean {
     target instanceof HTMLTextAreaElement ||
     target instanceof HTMLSelectElement
   )
+}
+
+const NUDGE_STEP = 1
+const NUDGE_STEP_LARGE = 10
+
+function nudgeFromArrowKey(
+  event: KeyboardEvent,
+  selectedId: string | null,
+  nudgeSelected: (dx: number, dy: number) => void
+): boolean {
+  if (!selectedId || event.metaKey || event.ctrlKey || event.altKey) {
+    return false
+  }
+  const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP
+  let dx = 0
+  let dy = 0
+  if (event.key === 'ArrowLeft') {
+    dx = -step
+  } else if (event.key === 'ArrowRight') {
+    dx = step
+  } else if (event.key === 'ArrowUp') {
+    dy = step
+  } else if (event.key === 'ArrowDown') {
+    dy = -step
+  } else {
+    return false
+  }
+  event.preventDefault()
+  nudgeSelected(dx, dy)
+  return true
 }

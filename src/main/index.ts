@@ -14,6 +14,7 @@ import type {
 } from '../shared/types'
 import { toPdfBytes } from '../shared/bytes'
 import { PDFJS_PROTOCOL_HOST, PDFJS_PROTOCOL_SCHEME } from '../shared/pdfjsAssets'
+import { isEncryptedPdfError } from './pdf-load'
 import { readTextFields } from './pdf-reader'
 import { applyTextFields } from './pdf-writer'
 
@@ -177,6 +178,39 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
+async function readTextFieldsAllowingEncryption(
+  bytes: Uint8Array
+): Promise<FormField[] | null> {
+  try {
+    return await readTextFields(bytes)
+  } catch (error) {
+    if (!isEncryptedPdfError(error)) {
+      throw error
+    }
+    if (!(await confirmOpenEncryptedPdf())) {
+      return null
+    }
+    return readTextFields(bytes, { ignoreEncryption: true })
+  }
+}
+
+async function confirmOpenEncryptedPdf(): Promise<boolean> {
+  if (!mainWindow) {
+    return false
+  }
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Encrypted PDF',
+    message: 'This PDF is encrypted.',
+    detail:
+      'You can open it anyway without a password. Some files may not display or save correctly.',
+    buttons: ['Open Anyway', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1
+  })
+  return response === 0
+}
+
 async function openPdf(): Promise<OpenPdfResult> {
   if (!mainWindow) {
     return { ok: false, canceled: true }
@@ -195,7 +229,10 @@ async function openPdf(): Promise<OpenPdfResult> {
   const path = picked.filePaths[0]
   try {
     const bytes = toPdfBytes(await readFile(path))
-    const fields = await readTextFields(bytes)
+    const fields = await readTextFieldsAllowingEncryption(bytes)
+    if (!fields) {
+      return { ok: false, canceled: true }
+    }
     return { ok: true, path, bytes, fields }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

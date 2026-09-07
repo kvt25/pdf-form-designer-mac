@@ -1,13 +1,16 @@
-import { PDFDocument, PDFTextField } from 'pdf-lib'
-import { toPdfBytes } from '../shared/bytes'
+import { PDFTextField, type PDFDocument } from 'pdf-lib'
 import type { FormField } from '../shared/types'
+import { loadPdfDocument, type PdfLoadOptions } from './pdf-load'
 
 const DEFAULT_FONT_SIZE = 12
 
 type TextWidget = ReturnType<PDFTextField['acroField']['getWidgets']>[number]
 
-export async function readTextFields(source: Uint8Array): Promise<FormField[]> {
-  const doc = await PDFDocument.load(toPdfBytes(source))
+export async function readTextFields(
+  source: Uint8Array,
+  options: PdfLoadOptions = {}
+): Promise<FormField[]> {
+  const doc = await loadPdfDocument(source, options)
   const form = doc.getForm()
   const pages = doc.getPages()
   const fields: FormField[] = []
