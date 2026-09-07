@@ -39,6 +39,7 @@ const api = {
   onMenuOpen: (callback: MenuListener) => onChannel('menu:open', callback),
   onMenuSave: (callback: MenuListener) => onChannel('menu:save', callback),
   onMenuSaveAs: (callback: MenuListener) => onChannel('menu:save-as', callback),
+  onMenuDuplicate: (callback: MenuListener) => onChannel('menu:duplicate', callback),
   onCloseRequested: (callback: MenuListener) => onChannel('app:close-requested', callback)
 }
 

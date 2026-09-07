@@ -6,6 +6,7 @@ export default function FieldInspector(): React.JSX.Element {
   const selectedId = useEditorStore((state) => state.selectedId)
   const updateField = useEditorStore((state) => state.updateField)
   const removeField = useEditorStore((state) => state.removeField)
+  const duplicateSelected = useEditorStore((state) => state.duplicateSelected)
 
   if (doc.kind !== 'open') {
     return (
@@ -69,9 +70,15 @@ export default function FieldInspector(): React.JSX.Element {
       <p className="muted">
         Page {field.page + 1} · {Math.round(field.width)}×{Math.round(field.height)} pt
       </p>
-      <button type="button" className="danger" onClick={() => removeField(field.id)}>
-        Delete field
-      </button>
+      <div className="inspector-actions">
+        <button type="button" title="Duplicate field (⌘D)" onClick={() => duplicateSelected()}>
+          Duplicate field
+        </button>
+        <button type="button" className="danger" onClick={() => removeField(field.id)}>
+          Delete field
+        </button>
+      </div>
+      <p className="muted">⌘C copy · ⌘V paste · ⌥-drag to clone</p>
     </section>
   )
 }

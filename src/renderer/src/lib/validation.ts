@@ -37,3 +37,19 @@ export function nextFieldName(fields: FormField[]): string {
   }
   return `text${index}`
 }
+
+export function uniqueFieldName(sourceName: string, fields: FormField[]): string {
+  if (/^text\d+$/.test(sourceName)) {
+    return nextFieldName(fields)
+  }
+  const used = new Set(fields.map((field) => field.name))
+  const stem = sourceName.replace(/_\d+$/, '') || sourceName
+  if (!used.has(stem)) {
+    return stem
+  }
+  let index = 2
+  while (used.has(`${stem}_${index}`)) {
+    index += 1
+  }
+  return `${stem}_${index}`
+}

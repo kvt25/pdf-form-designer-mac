@@ -22,6 +22,7 @@ interface DesktopApi {
   onMenuOpen: (callback: MenuListener) => () => void
   onMenuSave: (callback: MenuListener) => () => void
   onMenuSaveAs: (callback: MenuListener) => () => void
+  onMenuDuplicate: (callback: MenuListener) => () => void
   onCloseRequested: (callback: MenuListener) => () => void
 }
 

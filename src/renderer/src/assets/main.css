@@ -258,6 +258,13 @@ button.danger {
   text-overflow: ellipsis;
 }
 
+.inspector-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+
 .empty-state {
   flex: 1;
   display: flex;

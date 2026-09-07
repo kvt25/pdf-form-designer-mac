@@ -116,7 +116,7 @@ function createWindow(): void {
   }
 }
 
-function sendMenu(channel: 'menu:open' | 'menu:save' | 'menu:save-as'): void {
+function sendMenu(channel: 'menu:open' | 'menu:save' | 'menu:save-as' | 'menu:duplicate'): void {
   mainWindow?.webContents.send(channel)
 }
 
@@ -152,7 +152,24 @@ function buildMenu(): void {
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
     },
-    { role: 'editMenu' },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        {
+          label: 'Duplicate Field',
+          accelerator: 'CmdOrCtrl+D',
+          click: () => sendMenu('menu:duplicate')
+        },
+        { type: 'separator' },
+        { role: 'selectAll' }
+      ]
+    },
     { role: 'viewMenu' },
     { role: 'windowMenu' }
   ]

@@ -12,6 +12,7 @@ type Props = {
 
 type DragSession = {
   kind: 'move' | 'resize'
+  fieldId: string
   start: ViewRect
   pointerX: number
   pointerY: number
@@ -20,16 +21,19 @@ type DragSession = {
 export default function FieldBox({ field, viewport, selected }: Props): React.JSX.Element {
   const updateField = useEditorStore((state) => state.updateField)
   const selectField = useEditorStore((state) => state.selectField)
+  const cloneField = useEditorStore((state) => state.cloneField)
   const drag = useRef<DragSession | null>(null)
   const view = pdfRectToView(viewport, field)
 
   const begin = (event: React.PointerEvent<HTMLElement>, kind: 'move' | 'resize'): void => {
     event.stopPropagation()
     event.preventDefault()
-    selectField(field.id)
+    const fieldId = kind === 'move' && event.altKey ? cloneField(field.id, 0) || field.id : field.id
+    selectField(fieldId)
     event.currentTarget.setPointerCapture(event.pointerId)
     drag.current = {
       kind,
+      fieldId,
       start: view,
       pointerX: event.clientX,
       pointerY: event.clientY
@@ -56,7 +60,7 @@ export default function FieldBox({ field, viewport, selected }: Props): React.JS
             height: session.start.height + dy
           }
     const clamped = clampViewRect(next, viewport.width, viewport.height)
-    updateField(field.id, viewRectToPdf(viewport, clamped))
+    updateField(session.fieldId, viewRectToPdf(viewport, clamped))
   }
 
   const end = (event: React.PointerEvent<HTMLElement>): void => {
