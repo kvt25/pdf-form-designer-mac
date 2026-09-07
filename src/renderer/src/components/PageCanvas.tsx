@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   AnnotationMode,
+  RenderingCancelledException,
   type PageViewport,
   type PDFDocumentProxy,
   type RenderTask
@@ -39,23 +40,22 @@ export default function PageCanvas({ pdf, pageNumber, zoom, fields }: Props): Re
       canvas.height = output.height
       canvas.style.width = `${overlayViewport.width}px`
       canvas.style.height = `${overlayViewport.height}px`
-      const context = canvas.getContext('2d')
-      if (!context) {
+      if (cancelled) {
         return
       }
+      setViewport(overlayViewport)
       renderTask = page.render({
         canvas,
-        canvasContext: context,
         viewport: output,
         annotationMode: AnnotationMode.ENABLE_FORMS
       })
       try {
         await renderTask.promise
-      } catch {
-        return
-      }
-      if (!cancelled) {
-        setViewport(overlayViewport)
+      } catch (error) {
+        if (cancelled || error instanceof RenderingCancelledException) {
+          return
+        }
+        console.error(`Failed to render PDF page ${pageNumber}`, error)
       }
     }
 

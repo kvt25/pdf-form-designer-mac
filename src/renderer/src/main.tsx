@@ -1,3 +1,4 @@
+import './lib/pdfjsPolyfill'
 import './assets/main.css'
 
 import { StrictMode } from 'react'

@@ -1,6 +1,8 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, shell } from 'electron'
+import { existsSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'
+import { isAbsolute, join, relative, resolve as resolvePath } from 'path'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import type {
@@ -11,12 +13,60 @@ import type {
   UnsavedChoice
 } from '../shared/types'
 import { toPdfBytes } from '../shared/bytes'
+import { PDFJS_PROTOCOL_HOST, PDFJS_PROTOCOL_SCHEME } from '../shared/pdfjsAssets'
 import { readTextFields } from './pdf-reader'
 import { applyTextFields } from './pdf-writer'
 
 let mainWindow: BrowserWindow | null = null
 let dirty = false
 let allowClose = false
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: PDFJS_PROTOCOL_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true
+    }
+  }
+])
+
+function pdfjsAssetRoot(): string {
+  if (is.dev) {
+    return resolvePath(process.cwd(), 'node_modules/pdfjs-dist')
+  }
+  return join(__dirname, '../renderer/pdfjs')
+}
+
+function isPathInside(root: string, target: string): boolean {
+  const rel = relative(root, target)
+  return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
+}
+
+function pdfjsAssetFile(requestUrl: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(requestUrl)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== `${PDFJS_PROTOCOL_SCHEME}:` || parsed.hostname !== PDFJS_PROTOCOL_HOST) {
+    return null
+  }
+  const relativePath = decodeURIComponent(parsed.pathname).replace(/^\/+/, '')
+  if (!relativePath || relativePath.includes('\0')) {
+    return null
+  }
+  const root = pdfjsAssetRoot()
+  const filePath = resolvePath(root, relativePath)
+  if (!isPathInside(root, filePath) || !existsSync(filePath)) {
+    return null
+  }
+  return filePath
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -176,6 +226,14 @@ async function writePdf(request: SavePdfRequest, saveAs: boolean): Promise<SaveP
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.pdfformdesigner.app')
+
+  protocol.handle(PDFJS_PROTOCOL_SCHEME, (request) => {
+    const filePath = pdfjsAssetFile(request.url)
+    if (!filePath) {
+      return new Response('Not found', { status: 404 })
+    }
+    return net.fetch(pathToFileURL(filePath).href)
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

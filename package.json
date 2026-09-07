@@ -17,9 +17,9 @@
     "test:java": "yarn generate-fixture && cd java-filler && ./gradlew test",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "build": "yarn typecheck && electron-vite build && electron-builder --mac",
+    "build": "yarn typecheck && electron-vite build && electron-builder --mac --arm64",
     "postinstall": "electron-builder install-app-deps",
-    "build:unpack": "yarn typecheck && electron-vite build && electron-builder --mac --dir",
+    "build:unpack": "yarn typecheck && electron-vite build && electron-builder --mac --dir --arm64",
     "build:mac": "yarn build"
   },
   "dependencies": {

@@ -17,7 +17,7 @@ Open a PDF, click **Add text field**, drag a rectangle, and name it in the inspe
 yarn build
 ```
 
-That typechecks, bundles, and writes a `.app` / `.dmg` under `dist/`. The build is not notarized.
+That typechecks, bundles, and writes an Apple Silicon (arm64) `.app` / `.dmg` under `dist/`. The build is not notarized.
 
 ## Fill fields from Java
 
