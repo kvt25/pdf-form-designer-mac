@@ -1,4 +1,5 @@
 import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../../../shared/color'
+import { orphanControlLabel } from '../../../shared/widgetType'
 import { validateFieldName } from '../lib/validation'
 import { useEditorStore } from '../store/editorStore'
 
@@ -28,11 +29,12 @@ export default function FieldInspector(): React.JSX.Element {
           <strong>{orphan.name}</strong>
         </p>
         <p className="muted">
-          {orphanTypeLabel(orphan.fieldType)} · page {orphan.page + 1} · flags {orphan.flags}
+          {orphanControlLabel(orphan.fieldType, orphan.flags)} · page {orphan.page + 1}
         </p>
         <p className="muted">
-          This annotation is on the page but is not registered in the AcroForm field tree. Saving
-          without it removes it from the PDF.
+          {orphan.kind === 'acro'
+            ? 'This is a registered form control, such as a checkbox or radio button, that this editor does not design as a text field. Saving without it removes it from the PDF.'
+            : 'This annotation is on the page but is not registered in the AcroForm field tree. Saving without it removes it from the PDF.'}
         </p>
         <div className="inspector-actions">
           <button type="button" className="danger" onClick={() => removeOrphan(orphan.id)}>
@@ -116,7 +118,9 @@ export default function FieldInspector(): React.JSX.Element {
           Delete field
         </button>
       </div>
-      <p className="muted">⌘C copy · ⌘V paste · ⌥-drag to clone · arrows nudge (⇧ for 10pt)</p>
+      <p className="muted">
+        Double-click to rename · ⌘C copy · ⌘V paste · ⌥-drag to clone · arrows nudge (⇧ for 10pt)
+      </p>
     </section>
   )
 }
@@ -157,20 +161,4 @@ function ColorField({
       </div>
     </div>
   )
-}
-
-function orphanTypeLabel(fieldType: string | null): string {
-  if (fieldType === 'Tx') {
-    return 'Text'
-  }
-  if (fieldType === 'Sig') {
-    return 'Signature'
-  }
-  if (fieldType === 'Btn') {
-    return 'Button'
-  }
-  if (fieldType === 'Ch') {
-    return 'Choice'
-  }
-  return fieldType ?? 'Unknown type'
 }

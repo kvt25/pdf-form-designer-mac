@@ -172,6 +172,12 @@ button.danger {
   border-width: 2px;
 }
 
+.field-box.renaming {
+  overflow: visible;
+  cursor: text;
+  z-index: 2;
+}
+
 .field-box-label {
   display: block;
   padding: 1px 4px;
@@ -181,6 +187,21 @@ button.danger {
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+}
+
+.field-box-name-input {
+  display: block;
+  width: 100%;
+  min-width: 72px;
+  min-height: 100%;
+  margin: 0;
+  border: none;
+  padding: 1px 4px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: inherit;
+  background: var(--bg-elevated);
+  outline: none;
 }
 
 .resize-handle {
@@ -290,6 +311,23 @@ button.danger {
 
 .field-list button.orphan-item {
   border-color: color-mix(in srgb, #c45c16 45%, var(--border));
+}
+
+.extra-widget-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.extra-widget-group h3 {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.extra-widget-group:first-child h3 {
+  margin-top: 0;
 }
 
 .field-list-name {

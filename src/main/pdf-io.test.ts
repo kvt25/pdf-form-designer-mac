@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import type { FormField } from '../shared/types'
 import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../shared/color'
+import { orphanControlLabel } from '../shared/widgetType'
 import { isEncryptedPdfError } from './pdf-load'
 import { readPdfForm, readTextFields } from './pdf-reader'
 import { applyTextFields } from './pdf-writer'
@@ -100,6 +101,7 @@ test('readPdfForm finds unregistered page widgets and applyTextFields can strip 
   assert.equal(loaded.orphans.length, 1)
   assert.equal(loaded.orphans[0]?.name, 'Text4.0')
   assert.equal(loaded.orphans[0]?.fieldType, 'Tx')
+  assert.equal(loaded.orphans[0]?.kind, 'annot')
   assert.equal(loaded.orphans[0]?.flags, 0)
 
   const kept = await applyTextFields(source, [], loaded.orphans)
@@ -112,19 +114,78 @@ test('readPdfForm finds unregistered page widgets and applyTextFields can strip 
   assert.equal(gone.orphans.length, 0)
 })
 
-async function pdfWithOrphanWidget(name: string): Promise<Uint8Array> {
+test('readPdfForm lists registered checkboxes as extra widgets and can strip them', async () => {
+  const names = ['Fortnightly', 'Monthly', 'Other', 'Weekly']
+  const source = await pdfWithCheckboxes(['Monthly', 'Fortnightly', 'Weekly', 'Other'])
+  const loaded = await readPdfForm(source)
+  assert.equal(loaded.fields.length, 0)
+  assert.deepEqual(loaded.orphans.map((item) => item.name).sort(), names)
+  for (const extra of loaded.orphans) {
+    assert.equal(extra.kind, 'acro')
+    assert.equal(extra.fieldType, 'PDFCheckBox')
+    assert.equal(orphanControlLabel(extra.fieldType, extra.flags), 'Checkbox')
+  }
+
+  const kept = await applyTextFields(source, [], loaded.orphans)
+  const stillThere = await readPdfForm(kept)
+  assert.deepEqual(stillThere.orphans.map((item) => item.name).sort(), names)
+
+  const stripped = await applyTextFields(source, [], [])
+  const gone = await readPdfForm(stripped)
+  assert.equal(gone.orphans.length, 0)
+})
+
+test('orphan button widgets are classified as checkbox, radio, or push button', async () => {
+  const source = await pdfWithOrphanWidgets([
+    { name: 'agree', ft: 'Btn', ff: 0 },
+    { name: 'choice', ft: 'Btn', ff: 1 << 15 },
+    { name: 'go', ft: 'Btn', ff: 1 << 16 }
+  ])
+  const loaded = await readPdfForm(source)
+  const byName = Object.fromEntries(
+    loaded.orphans.map((item) => [item.name, orphanControlLabel(item.fieldType, item.flags)])
+  )
+  assert.equal(byName.agree, 'Checkbox')
+  assert.equal(byName.choice, 'Radio button')
+  assert.equal(byName.go, 'Button')
+})
+
+async function pdfWithCheckboxes(names: string[]): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   const page = doc.addPage([612, 792])
-  const widget = doc.context.obj({
-    Type: 'Annot',
-    Subtype: 'Widget',
-    FT: PDFName.of('Tx'),
-    T: PDFString.of(name),
-    Ff: 0,
-    Rect: [156, 745, 580, 811],
-    P: page.ref,
-    F: 4
+  const form = doc.getForm()
+  names.forEach((name, index) => {
+    form.createCheckBox(name).addToPage(page, {
+      x: 72,
+      y: 700 - index * 24,
+      width: 14,
+      height: 14
+    })
   })
-  page.node.addAnnot(doc.context.register(widget))
+  return doc.save()
+}
+
+async function pdfWithOrphanWidget(name: string): Promise<Uint8Array> {
+  return pdfWithOrphanWidgets([{ name, ft: 'Tx', ff: 0 }])
+}
+
+async function pdfWithOrphanWidgets(
+  specs: Array<{ name: string; ft: string; ff: number }>
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create()
+  const page = doc.addPage([612, 792])
+  for (const spec of specs) {
+    const widget = doc.context.obj({
+      Type: 'Annot',
+      Subtype: 'Widget',
+      FT: PDFName.of(spec.ft),
+      T: PDFString.of(spec.name),
+      Ff: spec.ff,
+      Rect: [156, 745, 580, 811],
+      P: page.ref,
+      F: 4
+    })
+    page.node.addAnnot(doc.context.register(widget))
+  }
   return doc.save()
 }

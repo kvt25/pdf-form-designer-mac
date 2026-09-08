@@ -1,13 +1,20 @@
 import {
   PDFArray,
+  PDFButton,
+  PDFCheckBox,
   PDFDict,
+  PDFDropdown,
   PDFHexString,
   PDFName,
   PDFNumber,
+  PDFOptionList,
+  PDFRadioGroup,
   PDFRef,
+  PDFSignature,
   PDFString,
   PDFTextField,
-  type PDFDocument
+  type PDFDocument,
+  type PDFField
 } from 'pdf-lib'
 import { pdfColorComponentsToHex } from '../shared/color'
 import type { FormField, OrphanWidget } from '../shared/types'
@@ -60,7 +67,7 @@ export async function readPdfForm(
   }
 
   const inspect = inspectPageWidgets(doc)
-  const orphans = inspect.unregistered.map(toOrphanWidget)
+  const orphans = [...readAcroExtras(doc, pages), ...inspect.unregistered.map(toOrphanWidget)]
   return { fields, orphans }
 }
 
@@ -116,6 +123,7 @@ function inspectPageWidgets(doc: PDFDocument): { unregistered: InspectedWidget[]
         pdfText(parentDict?.lookup(PDFName.of('T'))) ??
         'unnamed'
       const widgetFf = pdfNumber(dict.lookup(PDFName.of('Ff'))) ?? 0
+      const parentFf = parentDict ? (pdfNumber(parentDict.lookup(PDFName.of('Ff'))) ?? 0) : 0
       const fieldType =
         pdfName(dict.lookup(PDFName.of('FT'))) ?? pdfName(parentDict?.lookup(PDFName.of('FT')))
       const rectArr = dict.lookup(PDFName.of('Rect'))
@@ -137,7 +145,7 @@ function inspectPageWidgets(doc: PDFDocument): { unregistered: InspectedWidget[]
         ref: ref instanceof PDFRef ? ref : null,
         page: page + 1,
         name,
-        widgetFf,
+        widgetFf: widgetFf | parentFf,
         fieldType,
         rect
       })
@@ -248,6 +256,74 @@ export function removeUnregisteredWidgets(doc: PDFDocument, keepIds: Set<string>
   }
 }
 
+export function removeUnkeptAcroControls(doc: PDFDocument, keepIds: Set<string>): void {
+  const form = doc.getForm()
+  for (const field of [...form.getFields()]) {
+    if (field instanceof PDFTextField) {
+      continue
+    }
+    if (!keepIds.has(acroExtraId(field))) {
+      form.removeField(field)
+    }
+  }
+}
+
+function readAcroExtras(
+  doc: PDFDocument,
+  pages: ReturnType<PDFDocument['getPages']>
+): OrphanWidget[] {
+  const extras: OrphanWidget[] = []
+  for (const field of doc.getForm().getFields()) {
+    if (field instanceof PDFTextField) {
+      continue
+    }
+    const widget = field.acroField.getWidgets()[0]
+    if (!widget) {
+      continue
+    }
+    const rect = widget.getRectangle()
+    extras.push({
+      id: acroExtraId(field),
+      name: field.getName(),
+      page: pageIndexForWidget(pages, widget),
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      fieldType: acroFieldTypeName(field),
+      flags: field.acroField.getFlags(),
+      kind: 'acro'
+    })
+  }
+  return extras
+}
+
+function acroExtraId(field: PDFField): string {
+  return `acro:${field.getName()}`
+}
+
+function acroFieldTypeName(field: PDFField): string {
+  if (field instanceof PDFCheckBox) {
+    return 'PDFCheckBox'
+  }
+  if (field instanceof PDFRadioGroup) {
+    return 'PDFRadioGroup'
+  }
+  if (field instanceof PDFButton) {
+    return 'PDFButton'
+  }
+  if (field instanceof PDFDropdown) {
+    return 'PDFDropdown'
+  }
+  if (field instanceof PDFOptionList) {
+    return 'PDFOptionList'
+  }
+  if (field instanceof PDFSignature) {
+    return 'PDFSignature'
+  }
+  return field.constructor.name
+}
+
 function toOrphanWidget(widget: InspectedWidget): OrphanWidget {
   return {
     id: widget.id,
@@ -258,7 +334,8 @@ function toOrphanWidget(widget: InspectedWidget): OrphanWidget {
     width: widget.rect[2] - widget.rect[0],
     height: widget.rect[3] - widget.rect[1],
     fieldType: widget.fieldType,
-    flags: widget.widgetFf
+    flags: widget.widgetFf,
+    kind: 'annot'
   }
 }
 

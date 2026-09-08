@@ -15,7 +15,7 @@ export type FormField = {
   backgroundColor: string | null
 }
 
-/** Widget on a page `/Annots` array that is not in the AcroForm field tree. */
+/** Extra control: leftover page annot, or an AcroForm field that is not a designed text field. */
 export type OrphanWidget = {
   id: string
   name: string
@@ -26,6 +26,7 @@ export type OrphanWidget = {
   height: number
   fieldType: string | null
   flags: number
+  kind: 'annot' | 'acro'
 }
 
 export type OpenPdfResult =

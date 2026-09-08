@@ -1,3 +1,4 @@
+import { groupOrphansByControl } from '../../../shared/widgetType'
 import { useEditorStore } from '../store/editorStore'
 
 export default function FieldList(): React.JSX.Element {
@@ -48,29 +49,33 @@ export default function FieldList(): React.JSX.Element {
         <section className="sidebar-section">
           <h2>Extra widgets</h2>
           <p className="muted">
-            On the page but not in the form field tree. Viewers like Edge can still treat these as
-            editable inputs.
+            On the page as leftover annotations, or as other AcroForm controls such as checkboxes
+            and radio buttons. Remove them if you do not want viewers to keep them editable.
           </p>
           <ul className="field-list">
-            {doc.orphans.map((orphan) => (
-              <li key={orphan.id}>
-                <button
-                  type="button"
-                  className={orphan.id === selectedId ? 'active orphan-item' : 'orphan-item'}
-                  onClick={() => {
-                    selectField(orphan.id)
-                    document
-                      .getElementById(`field-${orphan.id}`)
-                      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    useEditorStore.getState().setCurrentPage(orphan.page)
-                  }}
-                >
-                  <span className="field-list-name">{orphan.name}</span>
-                  <span className="muted">
-                    p.{orphan.page + 1}
-                    {orphan.fieldType ? ` · ${orphan.fieldType}` : ''}
-                  </span>
-                </button>
+            {groupOrphansByControl(doc.orphans).map((group) => (
+              <li key={group.label} className="extra-widget-group">
+                <h3>{group.label}</h3>
+                <ul className="field-list">
+                  {group.items.map((orphan) => (
+                    <li key={orphan.id}>
+                      <button
+                        type="button"
+                        className={orphan.id === selectedId ? 'active orphan-item' : 'orphan-item'}
+                        onClick={() => {
+                          selectField(orphan.id)
+                          document
+                            .getElementById(`field-${orphan.id}`)
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          useEditorStore.getState().setCurrentPage(orphan.page)
+                        }}
+                      >
+                        <span className="field-list-name">{orphan.name}</span>
+                        <span className="muted">p.{orphan.page + 1}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>
