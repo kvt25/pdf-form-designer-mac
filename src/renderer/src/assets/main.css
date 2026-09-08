@@ -153,6 +153,25 @@ button.danger {
   z-index: 1;
 }
 
+.field-box.no-border {
+  border-style: dashed;
+}
+
+.field-box.no-fill {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.field-box.orphan {
+  border-color: #c45c16;
+  background: color-mix(in srgb, #c45c16 18%, transparent);
+  color: #c45c16;
+  cursor: pointer;
+}
+
+.field-box.orphan.selected {
+  border-width: 2px;
+}
+
 .field-box-label {
   display: block;
   padding: 1px 4px;
@@ -228,6 +247,22 @@ button.danger {
   align-items: center;
 }
 
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-row input[type='color'] {
+  width: 40px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+}
+
 .field input[type='text'],
 .field input[type='number'],
 .field input:not([type]) {
@@ -251,6 +286,10 @@ button.danger {
   display: flex;
   justify-content: space-between;
   text-align: left;
+}
+
+.field-list button.orphan-item {
+  border-color: color-mix(in srgb, #c45c16 45%, var(--border));
 }
 
 .field-list-name {

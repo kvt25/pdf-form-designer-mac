@@ -8,6 +8,7 @@ import icon from '../../resources/icon.png?asset'
 import type {
   FormField,
   OpenPdfResult,
+  OrphanWidget,
   SavePdfRequest,
   SavePdfResult,
   UnsavedChoice
@@ -15,7 +16,7 @@ import type {
 import { toPdfBytes } from '../shared/bytes'
 import { PDFJS_PROTOCOL_HOST, PDFJS_PROTOCOL_SCHEME } from '../shared/pdfjsAssets'
 import { isEncryptedPdfError } from './pdf-load'
-import { readTextFields } from './pdf-reader'
+import { readPdfForm } from './pdf-reader'
 import { applyTextFields } from './pdf-writer'
 
 let mainWindow: BrowserWindow | null = null
@@ -178,11 +179,11 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-async function readTextFieldsAllowingEncryption(
+async function readPdfFormAllowingEncryption(
   bytes: Uint8Array
-): Promise<FormField[] | null> {
+): Promise<{ fields: FormField[]; orphans: OrphanWidget[] } | null> {
   try {
-    return await readTextFields(bytes)
+    return await readPdfForm(bytes)
   } catch (error) {
     if (!isEncryptedPdfError(error)) {
       throw error
@@ -190,7 +191,7 @@ async function readTextFieldsAllowingEncryption(
     if (!(await confirmOpenEncryptedPdf())) {
       return null
     }
-    return readTextFields(bytes, { ignoreEncryption: true })
+    return readPdfForm(bytes, { ignoreEncryption: true })
   }
 }
 
@@ -229,11 +230,11 @@ async function openPdf(): Promise<OpenPdfResult> {
   const path = picked.filePaths[0]
   try {
     const bytes = toPdfBytes(await readFile(path))
-    const fields = await readTextFieldsAllowingEncryption(bytes)
-    if (!fields) {
+    const loaded = await readPdfFormAllowingEncryption(bytes)
+    if (!loaded) {
       return { ok: false, canceled: true }
     }
-    return { ok: true, path, bytes, fields }
+    return { ok: true, path, bytes, fields: loaded.fields, orphans: loaded.orphans }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     await dialog.showMessageBox(mainWindow, {
@@ -264,7 +265,11 @@ async function writePdf(request: SavePdfRequest, saveAs: boolean): Promise<SaveP
   }
 
   try {
-    const bytes = await applyTextFields(toPdfBytes(request.bytes), request.fields as FormField[])
+    const bytes = await applyTextFields(
+      toPdfBytes(request.bytes),
+      request.fields as FormField[],
+      (request.orphans as OrphanWidget[] | undefined) ?? []
+    )
     await writeFile(path, bytes)
     return { ok: true, path, bytes }
   } catch (error) {

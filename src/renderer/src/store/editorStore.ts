@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { FormField } from '../../../shared/types'
+import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../../../shared/color'
+import type { FormField, OrphanWidget } from '../../../shared/types'
 import { nextFieldName, uniqueFieldName } from '../lib/validation'
 
 export type Tool = 'select' | 'text'
@@ -11,6 +12,7 @@ export type EditorDocument =
       path: string
       bytes: Uint8Array
       fields: FormField[]
+      orphans: OrphanWidget[]
       dirty: boolean
     }
 
@@ -25,7 +27,12 @@ type EditorState = {
   pageCount: number
   clipboard: FieldClipboard | null
   pasteCount: number
-  loadDocument: (path: string, bytes: Uint8Array, fields: FormField[]) => void
+  loadDocument: (
+    path: string,
+    bytes: Uint8Array,
+    fields: FormField[],
+    orphans: OrphanWidget[]
+  ) => void
   markSaved: (path: string, bytes: Uint8Array) => void
   setTool: (tool: Tool) => void
   setZoom: (zoom: number) => void
@@ -35,6 +42,8 @@ type EditorState = {
   addField: (field: Omit<FormField, 'id' | 'name'> & { name?: string }) => string
   updateField: (id: string, patch: Partial<FormField>) => void
   removeField: (id: string) => void
+  removeOrphan: (id: string) => void
+  removeAllOrphans: () => void
   removeSelected: () => void
   cloneField: (id: string, offsetSteps?: number) => string
   copySelected: () => void
@@ -58,7 +67,9 @@ function snapshotField(field: FormField): FieldClipboard {
     height: field.height,
     fontSize: field.fontSize,
     multiline: field.multiline,
-    defaultValue: field.defaultValue
+    defaultValue: field.defaultValue,
+    borderColor: field.borderColor,
+    backgroundColor: field.backgroundColor
   }
 }
 
@@ -86,9 +97,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clipboard: null,
   pasteCount: 0,
 
-  loadDocument: (path, bytes, fields) => {
+  loadDocument: (path, bytes, fields, orphans) => {
     set({
-      doc: { kind: 'open', path, bytes, fields, dirty: false },
+      doc: { kind: 'open', path, bytes, fields, orphans, dirty: false },
       selectedId: null,
       tool: 'select',
       currentPage: 0
@@ -132,7 +143,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       height: partial.height,
       fontSize: partial.fontSize,
       multiline: partial.multiline,
-      defaultValue: partial.defaultValue
+      defaultValue: partial.defaultValue,
+      borderColor:
+        partial.borderColor !== undefined ? partial.borderColor : DEFAULT_FIELD_BORDER_COLOR,
+      backgroundColor:
+        partial.backgroundColor !== undefined
+          ? partial.backgroundColor
+          : DEFAULT_FIELD_BACKGROUND_COLOR
     }
     set({
       doc: { ...doc, fields: [...doc.fields, field], dirty: true },
@@ -166,11 +183,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })
   },
 
-  removeSelected: () => {
-    const { selectedId } = get()
-    if (selectedId) {
-      get().removeField(selectedId)
+  removeOrphan: (id) => {
+    const { doc, selectedId } = get()
+    if (doc.kind !== 'open') {
+      return
     }
+    set({
+      doc: { ...doc, orphans: doc.orphans.filter((orphan) => orphan.id !== id), dirty: true },
+      selectedId: selectedId === id ? null : selectedId
+    })
+  },
+
+  removeAllOrphans: () => {
+    const { doc, selectedId } = get()
+    if (doc.kind !== 'open' || doc.orphans.length === 0) {
+      return
+    }
+    const selectedIsOrphan =
+      selectedId !== null && doc.orphans.some((orphan) => orphan.id === selectedId)
+    set({
+      doc: { ...doc, orphans: [], dirty: true },
+      selectedId: selectedIsOrphan ? null : selectedId
+    })
+  },
+
+  removeSelected: () => {
+    const { doc, selectedId } = get()
+    if (!selectedId || doc.kind !== 'open') {
+      return
+    }
+    if (doc.orphans.some((orphan) => orphan.id === selectedId)) {
+      get().removeOrphan(selectedId)
+      return
+    }
+    get().removeField(selectedId)
   },
 
   cloneField: (id, offsetSteps = 1) => {

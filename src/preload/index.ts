@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { FormField, OpenPdfResult, SavePdfResult, UnsavedChoice } from '../shared/types'
+import type {
+  FormField,
+  OpenPdfResult,
+  OrphanWidget,
+  SavePdfResult,
+  UnsavedChoice
+} from '../shared/types'
 
 type MenuListener = () => void
 
@@ -19,11 +25,13 @@ const api = {
     path: string
     bytes: Uint8Array
     fields: FormField[]
+    orphans: OrphanWidget[]
   }): Promise<SavePdfResult> => ipcRenderer.invoke('pdf:save', payload),
   savePdfAs: (payload: {
     path?: string
     bytes: Uint8Array
     fields: FormField[]
+    orphans: OrphanWidget[]
   }): Promise<SavePdfResult> => ipcRenderer.invoke('pdf:save-as', payload),
   confirmUnsaved: (): Promise<UnsavedChoice> => ipcRenderer.invoke('dialog:unsaved'),
   showError: (message: string): Promise<void> => ipcRenderer.invoke('dialog:error', message),

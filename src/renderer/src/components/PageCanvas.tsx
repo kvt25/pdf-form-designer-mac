@@ -6,7 +6,7 @@ import {
   type PDFDocumentProxy,
   type RenderTask
 } from 'pdfjs-dist'
-import type { FormField } from '../../../shared/types'
+import type { FormField, OrphanWidget } from '../../../shared/types'
 import FieldOverlay from './FieldOverlay'
 
 type Props = {
@@ -14,9 +14,16 @@ type Props = {
   pageNumber: number
   zoom: number
   fields: FormField[]
+  orphans: OrphanWidget[]
 }
 
-export default function PageCanvas({ pdf, pageNumber, zoom, fields }: Props): React.JSX.Element {
+export default function PageCanvas({
+  pdf,
+  pageNumber,
+  zoom,
+  fields,
+  orphans
+}: Props): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [viewport, setViewport] = useState<PageViewport | null>(null)
 
@@ -47,7 +54,7 @@ export default function PageCanvas({ pdf, pageNumber, zoom, fields }: Props): Re
       renderTask = page.render({
         canvas,
         viewport: output,
-        annotationMode: AnnotationMode.ENABLE_FORMS
+        annotationMode: AnnotationMode.ENABLE
       })
       try {
         await renderTask.promise
@@ -70,7 +77,12 @@ export default function PageCanvas({ pdf, pageNumber, zoom, fields }: Props): Re
     <section id={`page-${pageNumber - 1}`} className="page-wrap">
       <canvas ref={canvasRef} className="page-canvas" />
       {viewport ? (
-        <FieldOverlay pageIndex={pageNumber - 1} viewport={viewport} fields={fields} />
+        <FieldOverlay
+          pageIndex={pageNumber - 1}
+          viewport={viewport}
+          fields={fields}
+          orphans={orphans}
+        />
       ) : null}
     </section>
   )

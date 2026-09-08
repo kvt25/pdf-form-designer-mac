@@ -1,4 +1,10 @@
-import type { FormField, OpenPdfResult, SavePdfResult, UnsavedChoice } from '../shared/types'
+import type {
+  FormField,
+  OpenPdfResult,
+  OrphanWidget,
+  SavePdfResult,
+  UnsavedChoice
+} from '../shared/types'
 
 type MenuListener = () => void
 
@@ -8,11 +14,13 @@ interface DesktopApi {
     path: string
     bytes: Uint8Array
     fields: FormField[]
+    orphans: OrphanWidget[]
   }) => Promise<SavePdfResult>
   savePdfAs: (payload: {
     path?: string
     bytes: Uint8Array
     fields: FormField[]
+    orphans: OrphanWidget[]
   }) => Promise<SavePdfResult>
   confirmUnsaved: () => Promise<UnsavedChoice>
   showError: (message: string) => Promise<void>

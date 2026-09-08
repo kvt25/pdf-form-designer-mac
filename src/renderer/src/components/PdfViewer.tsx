@@ -77,6 +77,7 @@ export default function PdfViewer(): React.JSX.Element {
           pageNumber={pageNumber}
           zoom={zoom}
           fields={doc.fields.filter((field) => field.page === pageNumber - 1)}
+          orphans={doc.orphans.filter((orphan) => orphan.page === pageNumber - 1)}
         />
       ))}
     </div>

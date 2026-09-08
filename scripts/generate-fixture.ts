@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { applyTextFields } from '../src/main/pdf-writer'
 import type { FormField } from '../src/shared/types'
+import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../src/shared/color'
 
 const output = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -21,7 +22,9 @@ function field(name: string, x: number, y: number, width: number): FormField {
     height: 20,
     fontSize: 12,
     multiline: false,
-    defaultValue: ''
+    defaultValue: '',
+    borderColor: DEFAULT_FIELD_BORDER_COLOR,
+    backgroundColor: DEFAULT_FIELD_BACKGROUND_COLOR
   }
 }
 

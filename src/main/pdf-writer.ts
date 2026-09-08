@@ -1,15 +1,45 @@
-import { PDFTextField, rgb, StandardFonts } from 'pdf-lib'
+import { PDFTextField, rgb, StandardFonts, type RGB } from 'pdf-lib'
 import { toPdfBytes } from '../shared/bytes'
-import type { FormField } from '../shared/types'
+import {
+  DEFAULT_FIELD_BACKGROUND_COLOR,
+  DEFAULT_FIELD_BORDER_COLOR,
+  hexToRgbChannels
+} from '../shared/color'
+import type { FormField, OrphanWidget } from '../shared/types'
 import { loadPdfDocumentAllowingEncryption } from './pdf-load'
+import { removeUnregisteredWidgets } from './pdf-reader'
 
-const FIELD_BORDER = rgb(0.35, 0.45, 0.62)
-const FIELD_BACKGROUND = rgb(1, 1, 1)
 const FIELD_TEXT = rgb(0, 0, 0)
+const FALLBACK_BORDER = rgbFromHex(DEFAULT_FIELD_BORDER_COLOR) ?? rgb(0.35, 0.45, 0.62)
+const FALLBACK_BACKGROUND = rgbFromHex(DEFAULT_FIELD_BACKGROUND_COLOR) ?? rgb(1, 1, 1)
+
+function rgbFromHex(hex: string): RGB | null {
+  const channels = hexToRgbChannels(hex)
+  if (!channels) {
+    return null
+  }
+  return rgb(channels.r, channels.g, channels.b)
+}
+
+function optionalRgb(hex: string | null, fallback: RGB): RGB | undefined {
+  if (hex === null) {
+    return undefined
+  }
+  return rgbFromHex(hex) ?? fallback
+}
+
+function borderAppearance(spec: FormField): { borderWidth: number; borderColor: RGB | undefined } {
+  const borderColor = optionalRgb(spec.borderColor, FALLBACK_BORDER)
+  return {
+    borderWidth: borderColor ? 1 : 0,
+    borderColor
+  }
+}
 
 export async function applyTextFields(
   source: Uint8Array,
-  fields: FormField[]
+  fields: FormField[],
+  orphansToKeep: OrphanWidget[] = []
 ): Promise<Uint8Array> {
   const doc = await loadPdfDocumentAllowingEncryption(source)
   const form = doc.getForm()
@@ -20,6 +50,10 @@ export async function applyTextFields(
       form.removeField(field)
     }
   }
+  removeUnregisteredWidgets(
+    doc,
+    new Set(orphansToKeep.map((item) => item.id))
+  )
 
   for (const spec of fields) {
     const page = pages[spec.page]
@@ -35,14 +69,15 @@ export async function applyTextFields(
       textField.setText(spec.defaultValue)
     }
 
+    const border = borderAppearance(spec)
     textField.addToPage(page, {
       x: spec.x,
       y: spec.y,
       width: spec.width,
       height: spec.height,
-      borderWidth: 1,
-      borderColor: FIELD_BORDER,
-      backgroundColor: FIELD_BACKGROUND,
+      borderWidth: border.borderWidth,
+      borderColor: border.borderColor,
+      backgroundColor: optionalRgb(spec.backgroundColor, FALLBACK_BACKGROUND),
       textColor: FIELD_TEXT
     })
 

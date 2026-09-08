@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { PageViewport } from 'pdfjs-dist'
-import type { FormField } from '../../../shared/types'
+import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../../../shared/color'
+import type { FormField, OrphanWidget } from '../../../shared/types'
 import { clampViewRect, viewRectToPdf, type ViewRect } from '../lib/coords'
 import { useEditorStore } from '../store/editorStore'
 import FieldBox from './FieldBox'
@@ -9,9 +10,15 @@ type Props = {
   pageIndex: number
   viewport: PageViewport
   fields: FormField[]
+  orphans: OrphanWidget[]
 }
 
-export default function FieldOverlay({ pageIndex, viewport, fields }: Props): React.JSX.Element {
+export default function FieldOverlay({
+  pageIndex,
+  viewport,
+  fields,
+  orphans
+}: Props): React.JSX.Element {
   const tool = useEditorStore((state) => state.tool)
   const selectedId = useEditorStore((state) => state.selectedId)
   const selectField = useEditorStore((state) => state.selectField)
@@ -79,7 +86,9 @@ export default function FieldOverlay({ pageIndex, viewport, fields }: Props): Re
       height: pdf.height,
       fontSize: 12,
       multiline: clamped.height > 28,
-      defaultValue: ''
+      defaultValue: '',
+      borderColor: DEFAULT_FIELD_BORDER_COLOR,
+      backgroundColor: DEFAULT_FIELD_BACKGROUND_COLOR
     })
   }
 
@@ -97,6 +106,15 @@ export default function FieldOverlay({ pageIndex, viewport, fields }: Props): Re
           field={field}
           viewport={viewport}
           selected={field.id === selectedId}
+        />
+      ))}
+      {orphans.map((orphan) => (
+        <FieldBox
+          key={orphan.id}
+          field={orphan}
+          viewport={viewport}
+          selected={orphan.id === selectedId}
+          orphan
         />
       ))}
       {draft ? (

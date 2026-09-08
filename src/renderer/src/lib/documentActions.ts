@@ -25,7 +25,9 @@ export async function openDocument(): Promise<void> {
   if (!result.ok) {
     return
   }
-  useEditorStore.getState().loadDocument(result.path, toPdfBytes(result.bytes), result.fields)
+  useEditorStore
+    .getState()
+    .loadDocument(result.path, toPdfBytes(result.bytes), result.fields, result.orphans)
 }
 
 export async function saveDocument(): Promise<boolean> {
@@ -41,7 +43,8 @@ export async function saveDocument(): Promise<boolean> {
   const result = await window.api.savePdf({
     path: doc.path,
     bytes: doc.bytes,
-    fields: doc.fields
+    fields: doc.fields,
+    orphans: doc.orphans
   })
   if (!result.ok) {
     return false
@@ -63,7 +66,8 @@ export async function saveDocumentAs(): Promise<boolean> {
   const result = await window.api.savePdfAs({
     path: doc.path,
     bytes: doc.bytes,
-    fields: doc.fields
+    fields: doc.fields,
+    orphans: doc.orphans
   })
   if (!result.ok) {
     return false
