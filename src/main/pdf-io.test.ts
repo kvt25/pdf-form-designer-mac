@@ -150,6 +150,17 @@ test('orphan button widgets are classified as checkbox, radio, or push button', 
   assert.equal(byName.go, 'Button')
 })
 
+test('applyTextFields can strip a signature field that has no appearance stream', async () => {
+  const source = await pdfWithSignatureMissingAppearance()
+  const loaded = await readPdfForm(source)
+  assert.equal(loaded.orphans.length, 1)
+  assert.equal(loaded.orphans[0]?.fieldType, 'PDFSignature')
+
+  const stripped = await applyTextFields(source, [], [])
+  const gone = await readPdfForm(stripped)
+  assert.equal(gone.orphans.length, 0)
+})
+
 async function pdfWithCheckboxes(names: string[]): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   const page = doc.addPage([612, 792])
@@ -162,6 +173,24 @@ async function pdfWithCheckboxes(names: string[]): Promise<Uint8Array> {
       height: 14
     })
   })
+  return doc.save()
+}
+
+async function pdfWithSignatureMissingAppearance(): Promise<Uint8Array> {
+  const doc = await PDFDocument.create()
+  const page = doc.addPage([612, 792])
+  const widget = doc.context.obj({
+    Type: 'Annot',
+    Subtype: 'Widget',
+    FT: PDFName.of('Sig'),
+    T: PDFString.of('CustomerSignature'),
+    Rect: [72, 100, 272, 140],
+    P: page.ref,
+    F: 4
+  })
+  const ref = doc.context.register(widget)
+  page.node.addAnnot(ref)
+  doc.getForm().acroForm.addField(ref)
   return doc.save()
 }
 

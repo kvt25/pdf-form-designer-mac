@@ -7,7 +7,7 @@ import {
 } from '../shared/color'
 import type { FormField, OrphanWidget } from '../shared/types'
 import { loadPdfDocumentAllowingEncryption } from './pdf-load'
-import { removeUnkeptAcroControls, removeUnregisteredWidgets } from './pdf-reader'
+import { removeAcroField, removeUnkeptAcroControls, removeUnregisteredWidgets } from './pdf-reader'
 
 const FIELD_TEXT = rgb(0, 0, 0)
 const FALLBACK_BORDER = rgbFromHex(DEFAULT_FIELD_BORDER_COLOR) ?? rgb(0.35, 0.45, 0.62)
@@ -47,9 +47,9 @@ export async function applyTextFields(
 
   const keepIds = new Set(orphansToKeep.map((item) => item.id))
   removeUnkeptAcroControls(doc, keepIds)
-  for (const field of form.getFields()) {
+  for (const field of [...form.getFields()]) {
     if (field instanceof PDFTextField) {
-      form.removeField(field)
+      removeAcroField(doc, field)
     }
   }
   removeUnregisteredWidgets(doc, keepIds)

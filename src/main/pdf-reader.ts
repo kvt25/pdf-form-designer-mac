@@ -257,15 +257,36 @@ export function removeUnregisteredWidgets(doc: PDFDocument, keepIds: Set<string>
 }
 
 export function removeUnkeptAcroControls(doc: PDFDocument, keepIds: Set<string>): void {
-  const form = doc.getForm()
-  for (const field of [...form.getFields()]) {
+  for (const field of [...doc.getForm().getFields()]) {
     if (field instanceof PDFTextField) {
       continue
     }
     if (!keepIds.has(acroExtraId(field))) {
-      form.removeField(field)
+      removeAcroField(doc, field)
     }
   }
+}
+
+/** Drop an AcroForm field without using pdf-lib removeField, which requires /AP/N. */
+export function removeAcroField(doc: PDFDocument, field: PDFField): void {
+  const form = doc.getForm()
+  const pages = doc.getPages()
+  for (const widget of field.acroField.getWidgets()) {
+    const widgetRef = widget.dict.context.getObjectRef(widget.dict) ?? field.ref
+    const page = pages[pageIndexForWidget(pages, widget)]
+    page?.node.removeAnnot(widgetRef)
+    page?.node.removeAnnot(field.ref)
+  }
+  form.acroForm.removeField(field.acroField)
+  const kids = field.acroField.Kids()
+  if (kids) {
+    for (const child of kids.asArray()) {
+      if (child instanceof PDFRef) {
+        doc.context.delete(child)
+      }
+    }
+  }
+  doc.context.delete(field.ref)
 }
 
 function readAcroExtras(
