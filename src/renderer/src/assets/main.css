@@ -10,6 +10,8 @@
   --accent-fill: color-mix(in srgb, #2f6fed 22%, transparent);
   --danger: #c42b1c;
   --page-shadow: color-mix(in srgb, CanvasText 28%, transparent);
+  --radius: 10px;
+  --rail-width: 88px;
 }
 
 *,
@@ -43,9 +45,16 @@ input {
 button {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 5px 10px;
   cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 button:hover:not(:disabled) {
@@ -77,8 +86,8 @@ button.danger {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  padding: 8px 12px;
+  gap: 6px 20px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
   flex-shrink: 0;
@@ -87,13 +96,49 @@ button.danger {
 .toolbar-group {
   display: flex;
   align-items: center;
+  gap: 4px;
+}
+
+.toolbar-button {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.toolbar-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.toolbar-button.ghost {
+  color: var(--muted);
+}
+
+.toolbar-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.toolbar-icon-button:hover:not(:disabled) {
+  background: var(--bg-hover);
 }
 
 .toolbar-label {
   min-width: 52px;
   text-align: center;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar-label.wide {
+  min-width: 96px;
 }
 
 .toolbar-file {
@@ -109,6 +154,68 @@ button.danger {
   display: flex;
   min-height: 0;
   flex: 1;
+}
+
+.tool-rail {
+  width: var(--rail-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.rail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rail-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 4px 2px;
+}
+
+.rail-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px 6px;
+  border-radius: var(--radius);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.rail-button span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.rail-button.active {
+  background: var(--accent-fill);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rail-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .page-scroller {
@@ -142,6 +249,7 @@ button.danger {
 .field-box {
   position: absolute;
   border: 1.5px solid var(--accent);
+  border-radius: 3px;
   background: var(--accent-fill);
   color: var(--accent);
   overflow: hidden;

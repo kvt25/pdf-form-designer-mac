@@ -36,9 +36,7 @@ export default function PdfViewer(): React.JSX.Element {
     return (
       <div className="empty-state">
         <h1>PDF Form Designer</h1>
-        <p>
-          Open a PDF, draw text fields on the page, and save. Java can fill those fields by name.
-        </p>
+        <p>Open a PDF, draw fields on the page, and save. Java can fill those fields by name.</p>
         <button type="button" onClick={() => void openDocument()}>
           Open PDF
         </button>

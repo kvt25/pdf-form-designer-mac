@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import Toolbar from './components/Toolbar'
+import ToolRail from './components/ToolRail'
 import PdfViewer from './components/PdfViewer'
 import FieldList from './components/FieldList'
 import FieldInspector from './components/FieldInspector'
 import { useEditorStore } from './store/editorStore'
+import { TOOL_KEYS } from './lib/tools'
 import {
   handleCloseRequested,
   openDocument,
@@ -69,6 +71,15 @@ export default function App(): React.JSX.Element {
       if (nudgeFromArrowKey(event, selectedId, nudgeSelected)) {
         return
       }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat) {
+        const toolForKey = TOOL_KEYS[event.key.toLowerCase()]
+        if (toolForKey && useEditorStore.getState().doc.kind === 'open') {
+          event.preventDefault()
+          const { tool, setTool } = useEditorStore.getState()
+          setTool(tool === toolForKey ? 'select' : toolForKey)
+          return
+        }
+      }
       const shortcut = event.metaKey || event.ctrlKey
       if (!shortcut || event.altKey || event.repeat) {
         return
@@ -126,6 +137,7 @@ export default function App(): React.JSX.Element {
     <div className="app">
       <Toolbar />
       <div className="workspace">
+        <ToolRail />
         <PdfViewer />
         <aside className="sidebar">
           <FieldList />
