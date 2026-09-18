@@ -3,7 +3,7 @@ import Toolbar from './components/Toolbar'
 import ToolRail from './components/ToolRail'
 import PdfViewer from './components/PdfViewer'
 import FieldList from './components/FieldList'
-import FieldInspector from './components/FieldInspector'
+import InspectorPopup from './components/InspectorPopup'
 import { useEditorStore } from './store/editorStore'
 import { TOOL_KEYS } from './lib/tools'
 import {
@@ -139,9 +139,9 @@ export default function App(): React.JSX.Element {
       <div className="workspace">
         <ToolRail />
         <PdfViewer />
+        <InspectorPopup />
         <aside className="sidebar">
           <FieldList />
-          <FieldInspector />
         </aside>
       </div>
     </div>
