@@ -1,4 +1,4 @@
-import { groupOrphansByControl } from '../../../shared/widgetType'
+import { fieldKindLabel, groupOrphansByControl } from '../../../shared/widgetType'
 import { useEditorStore } from '../store/editorStore'
 
 export default function FieldList(): React.JSX.Element {
@@ -21,7 +21,7 @@ export default function FieldList(): React.JSX.Element {
       <section className="sidebar-section">
         <h2>Fields</h2>
         {doc.fields.length === 0 ? (
-          <p className="muted">Draw a rectangle on the page to add a text field.</p>
+          <p className="muted">Draw a rectangle on the page to add a field.</p>
         ) : (
           <ul className="field-list">
             {doc.fields.map((field) => (
@@ -37,8 +37,12 @@ export default function FieldList(): React.JSX.Element {
                     useEditorStore.getState().setCurrentPage(field.page)
                   }}
                 >
-                  <span className="field-list-name">{field.name}</span>
-                  <span className="muted">p.{field.page + 1}</span>
+                  <span className="field-list-name">
+                    {field.kind === 'radio' ? `${field.name} = ${field.exportValue}` : field.name}
+                  </span>
+                  <span className="muted">
+                    {fieldKindLabel(field.kind)} · p.{field.page + 1}
+                  </span>
                 </button>
               </li>
             ))}
@@ -49,8 +53,8 @@ export default function FieldList(): React.JSX.Element {
         <section className="sidebar-section">
           <h2>Extra widgets</h2>
           <p className="muted">
-            On the page as leftover annotations, or as other AcroForm controls such as checkboxes
-            and radio buttons. Remove them if you do not want viewers to keep them editable.
+            Leftover annotations, signatures, or other controls this editor cannot design. Remove
+            them if you do not want viewers to keep them editable.
           </p>
           <ul className="field-list">
             {groupOrphansByControl(doc.orphans).map((group) => (

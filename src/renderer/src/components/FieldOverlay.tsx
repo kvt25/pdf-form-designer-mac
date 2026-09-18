@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { PageViewport } from 'pdfjs-dist'
 import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../../../shared/color'
-import type { FormField, OrphanWidget } from '../../../shared/types'
+import type { FieldKind, FormField, OrphanWidget } from '../../../shared/types'
 import { clampViewRect, viewRectToPdf, type ViewRect } from '../lib/coords'
 import { useEditorStore } from '../store/editorStore'
 import FieldBox from './FieldBox'
@@ -11,6 +11,15 @@ type Props = {
   viewport: PageViewport
   fields: FormField[]
   orphans: OrphanWidget[]
+}
+
+const MIN_SIZE: Record<FieldKind, { width: number; height: number }> = {
+  text: { width: 24, height: 14 },
+  checkbox: { width: 12, height: 12 },
+  radio: { width: 12, height: 12 },
+  dropdown: { width: 48, height: 16 },
+  list: { width: 48, height: 32 },
+  button: { width: 48, height: 16 }
 }
 
 export default function FieldOverlay({
@@ -39,7 +48,7 @@ export default function FieldOverlay({
     if (event.target !== overlayRef.current) {
       return
     }
-    if (tool !== 'text') {
+    if (tool === 'select') {
       selectField(null)
       return
     }
@@ -74,19 +83,23 @@ export default function FieldOverlay({
     draw.current = null
     const clamped = clampViewRect(draft, viewport.width, viewport.height)
     setDraft(null)
-    if (clamped.width < 24 || clamped.height < 14) {
+    const kind = tool === 'select' ? 'text' : tool
+    const min = MIN_SIZE[kind]
+    if (clamped.width < min.width || clamped.height < min.height) {
       return
     }
     const pdf = viewRectToPdf(viewport, clamped)
     addField({
+      kind,
       page: pageIndex,
       x: pdf.x,
       y: pdf.y,
       width: pdf.width,
       height: pdf.height,
       fontSize: 12,
-      multiline: clamped.height > 28,
+      multiline: kind === 'text' && clamped.height > 28,
       defaultValue: '',
+      options: kind === 'dropdown' || kind === 'list' ? ['Option 1', 'Option 2'] : [],
       borderColor: DEFAULT_FIELD_BORDER_COLOR,
       backgroundColor: DEFAULT_FIELD_BACKGROUND_COLOR
     })
@@ -95,7 +108,7 @@ export default function FieldOverlay({
   return (
     <div
       ref={overlayRef}
-      className={tool === 'text' ? 'field-overlay drawing' : 'field-overlay'}
+      className={tool === 'select' ? 'field-overlay' : 'field-overlay drawing'}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

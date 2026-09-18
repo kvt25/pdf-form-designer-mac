@@ -9,7 +9,7 @@ import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../s
 import { orphanControlLabel } from '../shared/widgetType'
 import { isEncryptedPdfError } from './pdf-load'
 import { readPdfForm, readTextFields } from './pdf-reader'
-import { applyTextFields } from './pdf-writer'
+import { applyFields, applyTextFields } from './pdf-writer'
 
 async function samplePdf(): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
@@ -23,6 +23,7 @@ function field(partial: Partial<FormField> & Pick<FormField, 'name'>): FormField
   return {
     id: partial.id ?? partial.name,
     name: partial.name,
+    kind: partial.kind ?? 'text',
     page: partial.page ?? 0,
     x: partial.x ?? 180,
     y: partial.y ?? 708,
@@ -31,6 +32,12 @@ function field(partial: Partial<FormField> & Pick<FormField, 'name'>): FormField
     fontSize: partial.fontSize ?? 12,
     multiline: partial.multiline ?? false,
     defaultValue: partial.defaultValue ?? '',
+    required: partial.required ?? false,
+    readonly: partial.readonly ?? false,
+    maxLength: partial.maxLength ?? null,
+    options: partial.options ?? [],
+    exportValue: partial.exportValue ?? '',
+    checked: partial.checked ?? false,
     borderColor:
       partial.borderColor === undefined ? DEFAULT_FIELD_BORDER_COLOR : partial.borderColor,
     backgroundColor:
@@ -114,24 +121,30 @@ test('readPdfForm finds unregistered page widgets and applyTextFields can strip 
   assert.equal(gone.orphans.length, 0)
 })
 
-test('readPdfForm lists registered checkboxes as extra widgets and can strip them', async () => {
+test('readPdfForm reads registered checkboxes as editable fields', async () => {
   const names = ['Fortnightly', 'Monthly', 'Other', 'Weekly']
   const source = await pdfWithCheckboxes(['Monthly', 'Fortnightly', 'Weekly', 'Other'])
   const loaded = await readPdfForm(source)
-  assert.equal(loaded.fields.length, 0)
-  assert.deepEqual(loaded.orphans.map((item) => item.name).sort(), names)
-  for (const extra of loaded.orphans) {
-    assert.equal(extra.kind, 'acro')
-    assert.equal(extra.fieldType, 'PDFCheckBox')
-    assert.equal(orphanControlLabel(extra.fieldType, extra.flags), 'Checkbox')
+  assert.equal(loaded.orphans.length, 0)
+  assert.deepEqual(loaded.fields.map((item) => item.name).sort(), names)
+  for (const item of loaded.fields) {
+    assert.equal(item.kind, 'checkbox')
+    assert.equal(item.exportValue, 'Yes')
+    assert.equal(item.checked, false)
   }
 
-  const kept = await applyTextFields(source, [], loaded.orphans)
-  const stillThere = await readPdfForm(kept)
-  assert.deepEqual(stillThere.orphans.map((item) => item.name).sort(), names)
+  const checked = loaded.fields.map((item) =>
+    item.name === 'Monthly' ? { ...item, checked: true } : item
+  )
+  const written = await applyFields(source, checked, [])
+  const again = await readPdfForm(written)
+  assert.deepEqual(again.fields.map((item) => item.name).sort(), names)
+  assert.equal(again.fields.find((item) => item.name === 'Monthly')?.checked, true)
+  assert.equal(again.fields.find((item) => item.name === 'Weekly')?.checked, false)
 
   const stripped = await applyTextFields(source, [], [])
   const gone = await readPdfForm(stripped)
+  assert.equal(gone.fields.length, 0)
   assert.equal(gone.orphans.length, 0)
 })
 
@@ -159,6 +172,85 @@ test('applyTextFields can strip a signature field that has no appearance stream'
   const stripped = await applyTextFields(source, [], [])
   const gone = await readPdfForm(stripped)
   assert.equal(gone.orphans.length, 0)
+})
+
+test('applyFields round-trips a radio group with a default selection', async () => {
+  const source = await samplePdf()
+  const written = await applyFields(source, [
+    field({ name: 'plan', kind: 'radio', exportValue: 'monthly', y: 708, width: 16, height: 16 }),
+    field({
+      name: 'plan',
+      kind: 'radio',
+      exportValue: 'yearly',
+      checked: true,
+      y: 684,
+      width: 16,
+      height: 16
+    })
+  ])
+
+  const loaded = await readPdfForm(written)
+  assert.equal(loaded.orphans.length, 0)
+  const options = loaded.fields.filter((item) => item.kind === 'radio' && item.name === 'plan')
+  assert.equal(options.length, 2)
+  assert.deepEqual(options.map((item) => item.exportValue).sort(), ['monthly', 'yearly'])
+  assert.equal(options.find((item) => item.exportValue === 'yearly')?.checked, true)
+  assert.equal(options.find((item) => item.exportValue === 'monthly')?.checked, false)
+})
+
+test('applyFields round-trips dropdown, list box, and button fields', async () => {
+  const source = await samplePdf()
+  const written = await applyFields(source, [
+    field({
+      name: 'country',
+      kind: 'dropdown',
+      options: ['Vietnam', 'United States'],
+      defaultValue: 'Vietnam',
+      y: 708
+    }),
+    field({
+      name: 'topics',
+      kind: 'list',
+      options: ['Invoices', 'Contracts'],
+      defaultValue: 'Contracts',
+      y: 640,
+      height: 40
+    }),
+    field({ name: 'submit', kind: 'button', defaultValue: 'Send', y: 580, width: 120 })
+  ])
+
+  const loaded = await readPdfForm(written)
+  assert.equal(loaded.orphans.length, 0)
+
+  const dropdown = loaded.fields.find((item) => item.name === 'country')
+  assert.ok(dropdown)
+  assert.equal(dropdown.kind, 'dropdown')
+  assert.deepEqual(dropdown.options, ['Vietnam', 'United States'])
+  assert.equal(dropdown.defaultValue, 'Vietnam')
+
+  const list = loaded.fields.find((item) => item.name === 'topics')
+  assert.ok(list)
+  assert.equal(list.kind, 'list')
+  assert.deepEqual(list.options, ['Invoices', 'Contracts'])
+  assert.equal(list.defaultValue, 'Contracts')
+
+  const button = loaded.fields.find((item) => item.name === 'submit')
+  assert.ok(button)
+  assert.equal(button.kind, 'button')
+})
+
+test('applyFields round-trips required, read-only, and max length flags', async () => {
+  const source = await samplePdf()
+  const written = await applyFields(source, [
+    field({ name: 'customerName', maxLength: 5, required: true, readonly: true })
+  ])
+
+  const loaded = await readPdfForm(written)
+  const customer = loaded.fields.find((item) => item.name === 'customerName')
+  assert.ok(customer)
+  assert.equal(customer.maxLength, 5)
+  assert.equal(customer.required, true)
+  assert.equal(customer.readonly, true)
 })
 
 async function pdfWithCheckboxes(names: string[]): Promise<Uint8Array> {

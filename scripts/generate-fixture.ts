@@ -15,6 +15,7 @@ function field(name: string, x: number, y: number, width: number): FormField {
   return {
     id: name,
     name,
+    kind: 'text',
     page: 0,
     x,
     y,
@@ -23,6 +24,12 @@ function field(name: string, x: number, y: number, width: number): FormField {
     fontSize: 12,
     multiline: false,
     defaultValue: '',
+    required: false,
+    readonly: false,
+    maxLength: null,
+    options: [],
+    exportValue: '',
+    checked: false,
     borderColor: DEFAULT_FIELD_BORDER_COLOR,
     backgroundColor: DEFAULT_FIELD_BACKGROUND_COLOR
   }

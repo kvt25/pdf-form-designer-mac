@@ -1,3 +1,4 @@
+import { FIELD_KINDS, fieldKindLabel } from '../../../shared/widgetType'
 import { useEditorStore } from '../store/editorStore'
 import { openDocument, saveDocument, saveDocumentAs } from '../lib/documentActions'
 
@@ -27,14 +28,18 @@ export default function Toolbar(): React.JSX.Element {
         </button>
       </div>
       <div className="toolbar-group">
-        <button
-          type="button"
-          className={tool === 'text' ? 'active' : undefined}
-          disabled={!open}
-          onClick={() => setTool(tool === 'text' ? 'select' : 'text')}
-        >
-          Add text field
-        </button>
+        {FIELD_KINDS.map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            className={tool === kind ? 'active' : undefined}
+            disabled={!open}
+            title={`Add ${fieldKindLabel(kind).toLowerCase()} field`}
+            onClick={() => setTool(tool === kind ? 'select' : kind)}
+          >
+            {tool === kind ? `Drawing ${fieldKindLabel(kind)}…` : `Add ${fieldKindLabel(kind)}`}
+          </button>
+        ))}
       </div>
       <div className="toolbar-group">
         <button type="button" disabled={!open} onClick={() => setZoom(zoom - 0.1)}>

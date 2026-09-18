@@ -1,9 +1,14 @@
 import { create } from 'zustand'
 import { DEFAULT_FIELD_BACKGROUND_COLOR, DEFAULT_FIELD_BORDER_COLOR } from '../../../shared/color'
-import type { FormField, OrphanWidget } from '../../../shared/types'
-import { nextFieldName, uniqueFieldName } from '../lib/validation'
+import type { FieldKind, FormField, OrphanWidget } from '../../../shared/types'
+import {
+  nextFieldName,
+  nextRadioExportValue,
+  uniqueFieldName,
+  uniqueRadioExportValue
+} from '../lib/validation'
 
-export type Tool = 'select' | 'text'
+export type Tool = 'select' | FieldKind
 
 export type EditorDocument =
   | { kind: 'empty' }
@@ -39,7 +44,9 @@ type EditorState = {
   setCurrentPage: (page: number) => void
   setPageCount: (count: number) => void
   selectField: (id: string | null) => void
-  addField: (field: Omit<FormField, 'id' | 'name'> & { name?: string }) => string
+  addField: (
+    field: Partial<Omit<FormField, 'id'>> & Pick<FormField, 'page' | 'x' | 'y' | 'width' | 'height'>
+  ) => string
   updateField: (id: string, patch: Partial<FormField>) => void
   removeField: (id: string) => void
   removeOrphan: (id: string) => void
@@ -60,6 +67,7 @@ const CLONE_OFFSET = 16
 function snapshotField(field: FormField): FieldClipboard {
   return {
     name: field.name,
+    kind: field.kind,
     page: field.page,
     x: field.x,
     y: field.y,
@@ -68,6 +76,12 @@ function snapshotField(field: FormField): FieldClipboard {
     fontSize: field.fontSize,
     multiline: field.multiline,
     defaultValue: field.defaultValue,
+    required: field.required,
+    readonly: field.readonly,
+    maxLength: field.maxLength,
+    options: [...field.options],
+    exportValue: field.exportValue,
+    checked: field.checked,
     borderColor: field.borderColor,
     backgroundColor: field.backgroundColor
   }
@@ -131,19 +145,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (doc.kind !== 'open') {
       return ''
     }
-    const name = partial.name ?? nextFieldName(doc.fields)
+    const kind: FieldKind = partial.kind ?? 'text'
+    const name = partial.name ?? nextFieldName(doc.fields, kind)
     const id = crypto.randomUUID()
     const field: FormField = {
       id,
       name,
+      kind,
       page: partial.page,
       x: partial.x,
       y: partial.y,
       width: partial.width,
       height: partial.height,
-      fontSize: partial.fontSize,
-      multiline: partial.multiline,
-      defaultValue: partial.defaultValue,
+      fontSize: partial.fontSize ?? 12,
+      multiline: partial.multiline ?? false,
+      defaultValue: partial.defaultValue ?? '',
+      required: partial.required ?? false,
+      readonly: partial.readonly ?? false,
+      maxLength: partial.maxLength ?? null,
+      options: partial.options ?? [],
+      exportValue:
+        partial.exportValue ?? (kind === 'radio' ? nextRadioExportValue(name, doc.fields) : 'Yes'),
+      checked: partial.checked ?? false,
       borderColor:
         partial.borderColor !== undefined ? partial.borderColor : DEFAULT_FIELD_BORDER_COLOR,
       backgroundColor:
@@ -163,10 +186,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (doc.kind !== 'open') {
       return
     }
+    const target = doc.fields.find((field) => field.id === id)
+    // Radio options share one group name, so renaming one renames the group.
+    const inGroupRename =
+      target?.kind === 'radio' && patch.name !== undefined && patch.name !== target.name
     set({
       doc: {
         ...doc,
-        fields: doc.fields.map((field) => (field.id === id ? { ...field, ...patch } : field)),
+        fields: doc.fields.map((field) => {
+          if (inGroupRename && field.kind === 'radio' && field.name === target.name) {
+            return { ...field, ...patch }
+          }
+          return field.id === id ? { ...field, ...patch } : field
+        }),
         dirty: true
       }
     })
@@ -229,9 +261,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return ''
     }
     const clone = offsetClone(snapshotField(source), offsetSteps, source.page)
+    if (source.kind === 'radio') {
+      // Cloning a radio button adds an option to the same group.
+      return get().addField({
+        ...clone,
+        exportValue: uniqueRadioExportValue(source.exportValue, source.name, doc.fields)
+      })
+    }
     return get().addField({
       ...clone,
-      name: uniqueFieldName(source.name, doc.fields)
+      name: uniqueFieldName(source.name, doc.fields, source.kind)
     })
   },
 
@@ -255,10 +294,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const samePage = clipboard.page === currentPage
     const steps = samePage ? pasteCount + 1 : 0
     const clone = offsetClone(clipboard, steps, currentPage)
-    const id = get().addField({
-      ...clone,
-      name: uniqueFieldName(clipboard.name, doc.fields)
-    })
+    const id =
+      clipboard.kind === 'radio'
+        ? get().addField({
+            ...clone,
+            exportValue: uniqueRadioExportValue(clipboard.exportValue, clipboard.name, doc.fields)
+          })
+        : get().addField({
+            ...clone,
+            name: uniqueFieldName(clipboard.name, doc.fields, clipboard.kind)
+          })
     if (samePage) {
       set({ pasteCount: steps })
     }

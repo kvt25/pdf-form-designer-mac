@@ -182,6 +182,7 @@ export default function FieldBox({
       className={[
         selected ? 'field-box selected' : 'field-box',
         orphan ? 'orphan' : undefined,
+        !orphan && 'kind' in field ? `field-kind-${field.kind}` : undefined,
         renaming ? 'renaming' : undefined,
         !orphan && !('borderColor' in field && field.borderColor) ? 'no-border' : undefined,
         !orphan && !('backgroundColor' in field && field.backgroundColor) ? 'no-fill' : undefined
@@ -244,7 +245,7 @@ export default function FieldBox({
         <span className="field-box-label">
           {orphan && 'fieldType' in field
             ? `${field.name} · ${orphanControlLabel(field.fieldType, field.flags)}`
-            : field.name}
+            : fieldBoxLabel(field)}
         </span>
       )}
       {selected && !orphan && !renaming ? (
@@ -259,6 +260,26 @@ export default function FieldBox({
       ) : null}
     </div>
   )
+}
+
+function fieldBoxLabel(field: FormField | OrphanWidget): string {
+  if (field.kind === 'annot' || field.kind === 'acro') {
+    return field.name
+  }
+  switch (field.kind) {
+    case 'text':
+      return field.name
+    case 'checkbox':
+      return `${field.checked ? '☑' : '☐'} ${field.name}`
+    case 'radio':
+      return `${field.checked ? '◉' : '○'} ${field.name} = ${field.exportValue || '?'}`
+    case 'dropdown':
+      return `${field.defaultValue || field.options[0] || field.name} ▾`
+    case 'list':
+      return field.defaultValue || field.name
+    case 'button':
+      return field.defaultValue || field.name
+  }
 }
 
 function isDoubleClick(

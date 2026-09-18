@@ -17,7 +17,7 @@ import { toPdfBytes } from '../shared/bytes'
 import { PDFJS_PROTOCOL_HOST, PDFJS_PROTOCOL_SCHEME } from '../shared/pdfjsAssets'
 import { isEncryptedPdfError } from './pdf-load'
 import { readPdfForm } from './pdf-reader'
-import { applyTextFields } from './pdf-writer'
+import { applyFields } from './pdf-writer'
 
 let mainWindow: BrowserWindow | null = null
 let dirty = false
@@ -265,7 +265,7 @@ async function writePdf(request: SavePdfRequest, saveAs: boolean): Promise<SaveP
   }
 
   try {
-    const bytes = await applyTextFields(
+    const bytes = await applyFields(
       toPdfBytes(request.bytes),
       request.fields as FormField[],
       (request.orphans as OrphanWidget[] | undefined) ?? []

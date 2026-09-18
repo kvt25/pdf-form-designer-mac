@@ -23,9 +23,7 @@ export function loadPdfDocument(
   })
 }
 
-export async function loadPdfDocumentAllowingEncryption(
-  source: Uint8Array
-): Promise<PDFDocument> {
+export async function loadPdfDocumentAllowingEncryption(source: Uint8Array): Promise<PDFDocument> {
   try {
     return await loadPdfDocument(source)
   } catch (error) {

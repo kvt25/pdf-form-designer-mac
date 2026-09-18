@@ -14,15 +14,17 @@ import {
   PDFString,
   PDFTextField,
   type PDFDocument,
-  type PDFField
+  type PDFField,
+  type PDFWidgetAnnotation
 } from 'pdf-lib'
 import { pdfColorComponentsToHex } from '../shared/color'
 import type { FormField, OrphanWidget } from '../shared/types'
 import { loadPdfDocument, type PdfLoadOptions } from './pdf-load'
 
 const DEFAULT_FONT_SIZE = 12
+const CHECKBOX_EXPORT_VALUE = 'Yes'
 
-type TextWidget = ReturnType<PDFTextField['acroField']['getWidgets']>[number]
+type AnyWidget = PDFWidgetAnnotation
 
 export type PdfFormContents = {
   fields: FormField[]
@@ -39,31 +41,140 @@ export async function readPdfForm(
   const fields: FormField[] = []
 
   for (const field of form.getFields()) {
-    if (!(field instanceof PDFTextField)) {
+    if (field instanceof PDFTextField) {
+      const widget = field.acroField.getWidgets()[0]
+      if (!widget) {
+        continue
+      }
+
+      const rect = widget.getRectangle()
+      const name = field.getName()
+      fields.push({
+        id: name,
+        name,
+        kind: 'text',
+        page: pageIndexForWidget(pages, widget),
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        fontSize: readFontSize(field),
+        multiline: field.isMultiline(),
+        defaultValue: field.getText() ?? '',
+        required: field.isRequired(),
+        readonly: field.isReadOnly(),
+        maxLength: field.getMaxLength() ?? null,
+        options: [],
+        exportValue: '',
+        checked: false,
+        borderColor: readBorderColor(widget),
+        backgroundColor: readBackgroundColor(widget)
+      })
       continue
     }
 
-    const widget = field.acroField.getWidgets()[0]
-    if (!widget) {
+    if (field instanceof PDFCheckBox) {
+      const widget = field.acroField.getWidgets()[0]
+      if (!widget) {
+        continue
+      }
+      const rect = widget.getRectangle()
+      const name = field.getName()
+      fields.push({
+        id: name,
+        name,
+        kind: 'checkbox',
+        page: pageIndexForWidget(pages, widget),
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        fontSize: DEFAULT_FONT_SIZE,
+        multiline: false,
+        defaultValue: '',
+        required: field.isRequired(),
+        readonly: field.isReadOnly(),
+        maxLength: null,
+        options: [],
+        exportValue: CHECKBOX_EXPORT_VALUE,
+        checked: field.isChecked(),
+        borderColor: readBorderColor(widget),
+        backgroundColor: readBackgroundColor(widget)
+      })
       continue
     }
 
-    const rect = widget.getRectangle()
-    const name = field.getName()
-    fields.push({
-      id: name,
-      name,
-      page: pageIndexForWidget(pages, widget),
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-      fontSize: readFontSize(field),
-      multiline: field.isMultiline(),
-      defaultValue: field.getText() ?? '',
-      borderColor: readBorderColor(widget),
-      backgroundColor: readBackgroundColor(widget)
-    })
+    if (field instanceof PDFRadioGroup) {
+      const options = readRadioGroup(field, pages)
+      if (options) {
+        fields.push(...options)
+        continue
+      }
+      // Unreadable groups (no options or no widgets) stay as extra widgets.
+    }
+
+    if (field instanceof PDFDropdown || field instanceof PDFOptionList) {
+      const widget = field.acroField.getWidgets()[0]
+      if (!widget) {
+        continue
+      }
+      const rect = widget.getRectangle()
+      const name = field.getName()
+      const selected = field.getSelected()
+      fields.push({
+        id: name,
+        name,
+        kind: field instanceof PDFDropdown ? 'dropdown' : 'list',
+        page: pageIndexForWidget(pages, widget),
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        fontSize: readFontSize(field),
+        multiline: false,
+        defaultValue: selected[0] ?? '',
+        required: field.isRequired(),
+        readonly: field.isReadOnly(),
+        maxLength: null,
+        options: field.getOptions(),
+        exportValue: '',
+        checked: false,
+        borderColor: readBorderColor(widget),
+        backgroundColor: readBackgroundColor(widget)
+      })
+      continue
+    }
+
+    if (field instanceof PDFButton) {
+      const widget = field.acroField.getWidgets()[0]
+      if (!widget) {
+        continue
+      }
+      const rect = widget.getRectangle()
+      const name = field.getName()
+      fields.push({
+        id: name,
+        name,
+        kind: 'button',
+        page: pageIndexForWidget(pages, widget),
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        fontSize: readFontSize(field),
+        multiline: false,
+        defaultValue: '',
+        required: false,
+        readonly: field.isReadOnly(),
+        maxLength: null,
+        options: [],
+        exportValue: '',
+        checked: false,
+        borderColor: readBorderColor(widget),
+        backgroundColor: readBackgroundColor(widget)
+      })
+      continue
+    }
   }
 
   const inspect = inspectPageWidgets(doc)
@@ -176,10 +287,53 @@ function pdfName(value: unknown): string | null {
   return null
 }
 
-function pageIndexForWidget(
-  pages: ReturnType<PDFDocument['getPages']>,
-  widget: TextWidget
-): number {
+/** Expand a radio group into one editable option field per widget. */
+function readRadioGroup(
+  field: PDFRadioGroup,
+  pages: ReturnType<PDFDocument['getPages']>
+): FormField[] | null {
+  const options = field.getOptions()
+  const widgets = field.acroField.getWidgets()
+  if (options.length === 0 || widgets.length === 0) {
+    return null
+  }
+  const selected = field.getSelected()
+  const count = Math.min(options.length, widgets.length)
+  const out: FormField[] = []
+  for (let index = 0; index < count; index += 1) {
+    const widget = widgets[index]
+    const option = options[index]
+    if (!widget || option === undefined) {
+      continue
+    }
+    const rect = widget.getRectangle()
+    const name = field.getName()
+    out.push({
+      id: `${name}::${option}`,
+      name,
+      kind: 'radio',
+      page: pageIndexForWidget(pages, widget),
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+      fontSize: DEFAULT_FONT_SIZE,
+      multiline: false,
+      defaultValue: '',
+      required: field.isRequired(),
+      readonly: field.isReadOnly(),
+      maxLength: null,
+      options: [],
+      exportValue: option,
+      checked: selected === option,
+      borderColor: readBorderColor(widget),
+      backgroundColor: readBackgroundColor(widget)
+    })
+  }
+  return out.length > 0 ? out : null
+}
+
+function pageIndexForWidget(pages: ReturnType<PDFDocument['getPages']>, widget: AnyWidget): number {
   const pageRef = widget.P()
   if (pageRef) {
     const index = pages.findIndex((page) => page.ref === pageRef)
@@ -208,7 +362,7 @@ function pageIndexForWidget(
   return 0
 }
 
-function readBorderColor(widget: TextWidget): string | null {
+function readBorderColor(widget: AnyWidget): string | null {
   const width = widget.getBorderStyle()?.getWidth()
   if (width === 0) {
     return null
@@ -217,13 +371,16 @@ function readBorderColor(widget: TextWidget): string | null {
   return pdfColorComponentsToHex(components) ?? '#000000'
 }
 
-function readBackgroundColor(widget: TextWidget): string | null {
+function readBackgroundColor(widget: AnyWidget): string | null {
   const components = widget.getAppearanceCharacteristics()?.getBackgroundColor()
   return pdfColorComponentsToHex(components)
 }
 
-function readFontSize(field: PDFTextField): number {
-  const appearance = field.acroField.getDefaultAppearance()
+function readFontSize(field: PDFField): number {
+  const acro = field.acroField as unknown as {
+    getDefaultAppearance?: () => string | undefined
+  }
+  const appearance = acro.getDefaultAppearance?.()
   const match = appearance?.match(/(\d+(?:\.\d+)?)\s+Tf/)
   if (!match) {
     return DEFAULT_FONT_SIZE
@@ -295,7 +452,14 @@ function readAcroExtras(
 ): OrphanWidget[] {
   const extras: OrphanWidget[] = []
   for (const field of doc.getForm().getFields()) {
-    if (field instanceof PDFTextField) {
+    if (
+      field instanceof PDFTextField ||
+      field instanceof PDFCheckBox ||
+      field instanceof PDFDropdown ||
+      field instanceof PDFOptionList ||
+      field instanceof PDFButton ||
+      (field instanceof PDFRadioGroup && readRadioGroup(field, pages) !== null)
+    ) {
       continue
     }
     const widget = field.acroField.getWidgets()[0]

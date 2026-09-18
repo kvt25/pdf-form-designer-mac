@@ -5,6 +5,27 @@ const COMBO = 1 << 17
 const MULTILINE = 1 << 12
 const PASSWORD = 1 << 13
 
+import type { FieldKind } from './types'
+
+export const FIELD_KINDS: FieldKind[] = ['text', 'checkbox', 'radio', 'dropdown', 'list', 'button']
+
+export function fieldKindLabel(kind: FieldKind): string {
+  switch (kind) {
+    case 'text':
+      return 'Text'
+    case 'checkbox':
+      return 'Checkbox'
+    case 'radio':
+      return 'Radio button'
+    case 'dropdown':
+      return 'Dropdown'
+    case 'list':
+      return 'List box'
+    case 'button':
+      return 'Button'
+  }
+}
+
 export function orphanControlLabel(fieldType: string | null, flags: number): string {
   if (fieldType === 'PDFCheckBox') {
     return 'Checkbox'

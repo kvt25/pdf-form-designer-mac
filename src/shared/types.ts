@@ -1,6 +1,9 @@
+export type FieldKind = 'text' | 'checkbox' | 'radio' | 'dropdown' | 'list' | 'button'
+
 export type FormField = {
   id: string
   name: string
+  kind: FieldKind
   page: number
   x: number
   y: number
@@ -8,7 +11,18 @@ export type FormField = {
   height: number
   fontSize: number
   multiline: boolean
+  /** Text content, selected choice value, or button label. */
   defaultValue: string
+  required: boolean
+  readonly: boolean
+  /** Text fields only; `null` means no limit. */
+  maxLength: number | null
+  /** Dropdown and list box options. */
+  options: string[]
+  /** Radio option value (and checkbox on-value, always `Yes`). */
+  exportValue: string
+  /** Default-selected state for checkbox and radio fields. */
+  checked: boolean
   /** `#rrggbb`, or `null` for no border. */
   borderColor: string | null
   /** `#rrggbb`, or `null` for no fill. */
