@@ -253,6 +253,25 @@ test('applyFields round-trips required, read-only, and max length flags', async 
   assert.equal(customer.readonly, true)
 })
 
+test('applyFields generates appearance streams so no field renders blank', async () => {
+  const source = await samplePdf()
+  const written = await applyFields(source, [
+    field({ name: 'customerName', defaultValue: 'Ada' }),
+    field({ name: 'agree', kind: 'checkbox', checked: true, width: 16, height: 16 }),
+    field({ name: 'plan', kind: 'radio', exportValue: 'monthly', width: 16, height: 16 }),
+    field({ name: 'country', kind: 'dropdown', options: ['Vietnam', 'Germany'] }),
+    field({ name: 'submit', kind: 'button', defaultValue: 'Send' })
+  ])
+
+  const check = await PDFDocument.load(written)
+  const stale = check
+    .getForm()
+    .getFields()
+    .filter((item) => item.needsAppearancesUpdate())
+    .map((item) => item.getName())
+  assert.deepEqual(stale, [])
+})
+
 async function pdfWithCheckboxes(names: string[]): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   const page = doc.addPage([612, 792])
